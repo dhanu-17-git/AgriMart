@@ -35,9 +35,13 @@ yarn-error.log*
 .openclaude/
 ui-ux-pro-max-skill/
 BACKEND_ARCHITECTURE_PLAN.md
+image/
+.agents/
 
 # Editor & OS
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+~$*
+*.tmp
