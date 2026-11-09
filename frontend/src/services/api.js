@@ -189,6 +189,16 @@ export async function apiGetTransactions() {
 }
 
 /**
+ * Execute an Escrow Lifecycle Action on a Transaction (e.g., 'fund_escrow', 'dispatch_goods', 'pass_assay', 'accept_inward', 'release_funds')
+ */
+export async function apiPerformTransactionAction(transactionId, action) {
+  return apiRequest(`/api/v1/transactions/${transactionId}/action/`, {
+    method: 'POST',
+    body: JSON.stringify({ action }),
+  });
+}
+
+/**
  * Get APMC Delivery Gate Slot Bookings
  */
 export async function apiGetMyBookings() {

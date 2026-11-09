@@ -1,28 +1,30 @@
 // src/assistant/cards/TransactionCard.jsx
 import React from 'react';
-import { FileText, ShieldCheck, CheckCircle2, Clock, ArrowRight, ExternalLink, Scale } from 'lucide-react';
+import { FileText, ShieldCheck, CheckCircle2, Clock, ArrowRight, ExternalLink, Scale, CreditCard } from 'lucide-react';
 import { TRANSACTION_LIFECYCLE_STEPS } from '../../data/mockData';
 
 export default function TransactionCard({ data, onAction }) {
   if (!data) return null;
 
   const {
-    orderId = 'ORD-AGX-48291',
-    contractNumber = 'AGX-2026-74741',
-    escrowReference = 'ESC-AXIS-683553',
+    orderId = data.transactionId || 'ORD-AGX-48291',
+    contractNumber = data.contractNumber || 'CN-2026-LDH-89F2',
+    escrowReference = data.escrowHash ? `ESC-SHA256-${data.escrowHash.slice(0, 8)}` : 'ESC-AXIS-683553',
     commodity = 'Wheat (Sharbati Grade-A)',
     mandi = 'Ludhiana APMC, Punjab',
-    quantity = 120,
+    quantity = 100,
     unit = 'Quintals',
-    rate = 2450,
-    buyer = 'ITC Agri Business Division',
-    seller = 'Harpreet Singh (Khanna FPO)',
-    status = 'Escrow Secured',
-    currentStep = 3, // Step 1 to 6
-    paymentStatus = 'Funds Quarantined in Escrow',
-    deliveryStatus = 'e-NWR Receipt Issued',
-    settlementStatus = 'Awaiting Gate Weighment Reconciliation',
-    totalEscrow = 296900,
+    rate = data.agreedRate || 2450,
+    buyer = data.buyer || 'ITC Agri Business Division',
+    seller = data.seller || 'Harpreet Singh (Khanna FPO)',
+    status = data.status || 'Contract Note Issued',
+    currentStep = data.currentStep || 1, // Step 1 to 6
+    paymentStatus = data.canPayEscrow ? 'Awaiting 100% Escrow Funding' : 'Funds Secured in Escrow',
+    deliveryStatus = currentStep >= 3 ? 'Goods Dispatched to Mandi' : 'Awaiting Seller Dispatch',
+    settlementStatus = currentStep >= 6 ? 'Funds Settled to Farmer Bank' : 'Awaiting APMC Quality Assay & Weighment',
+    totalEscrow = data.grossAmount || data.totalAmount || data.totalEscrow || 245000,
+    canPayEscrow = data.canPayEscrow ?? (currentStep === 1),
+    virtualEscrowAccount = data.virtualEscrowAccount || 'ENAM-AXIS-LDH-2026',
   } = data;
 
   return (
@@ -35,7 +37,7 @@ export default function TransactionCard({ data, onAction }) {
             <span>{status}</span>
           </span>
           <span className="font-mono text-[11px] font-bold text-slate-700">
-            {orderId}
+            {contractNumber}
           </span>
         </div>
 
@@ -44,21 +46,21 @@ export default function TransactionCard({ data, onAction }) {
         </h3>
         <div className="flex items-center justify-between text-xs text-slate-500 mt-0.5">
           <span>{mandi}</span>
-          <span className="font-mono text-[11px] text-[#C26747] font-semibold">{escrowReference}</span>
+          <span className="font-mono text-[11px] text-[#155E91] font-semibold">{escrowReference}</span>
         </div>
       </div>
 
       {/* Trade Parties & Value */}
       <div className="grid grid-cols-2 gap-3 py-3 border-b border-black/[0.06] text-xs">
-        <div className="p-2.5 bg-[#FAF9F5] rounded-xl space-y-0.5">
-          <span className="text-[10px] uppercase font-mono text-slate-400 block">Buyer</span>
+        <div className="p-2.5 bg-[#F8FAFB] rounded-xl space-y-0.5 border border-[#E8E9E7]">
+          <span className="text-[10px] uppercase font-mono text-slate-400 block font-bold">Buyer & Settlement</span>
           <span className="font-bold text-slate-900 truncate block">{buyer}</span>
-          <span className="text-[10px] text-slate-400 font-mono">Seller: {seller}</span>
+          <span className="text-[10px] text-slate-500 font-mono block">Virtual A/C: {virtualEscrowAccount}</span>
         </div>
 
-        <div className="p-2.5 bg-[#FAF9F5] rounded-xl space-y-0.5 text-right">
-          <span className="text-[10px] uppercase font-mono text-slate-400 block">Total Escrow Value</span>
-          <span className="text-base font-black font-mono text-slate-900 block">
+        <div className="p-2.5 bg-[#F8FAFB] rounded-xl space-y-0.5 text-right border border-[#E8E9E7]">
+          <span className="text-[10px] uppercase font-mono text-slate-400 block font-bold">Total Escrow Value</span>
+          <span className="text-base font-black font-mono text-[#155E91] block">
             ₹{Number(totalEscrow).toLocaleString()}
           </span>
           <span className="text-[10px] text-slate-500 font-mono">
@@ -70,10 +72,10 @@ export default function TransactionCard({ data, onAction }) {
       {/* 6-Step Visual Lifecycle Tracker */}
       <div className="py-3 border-b border-black/[0.06]">
         <span className="text-[10px] uppercase font-mono text-slate-400 font-bold block mb-2">
-          Transaction Lifecycle State:
+          e-NAM Escrow Clearinghouse State:
         </span>
-        <div className="flex items-center justify-between relative">
-          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-slate-200 -translate-y-1/2 z-0"></div>
+        <div className="flex items-center justify-between relative px-1">
+          <div className="absolute top-1/2 left-2 right-2 h-0.5 bg-slate-200 -translate-y-1/2 z-0"></div>
           {TRANSACTION_LIFECYCLE_STEPS.map((step) => {
             const isCompleted = step.id <= currentStep;
             const isCurrent = step.id === currentStep;
@@ -81,7 +83,7 @@ export default function TransactionCard({ data, onAction }) {
               <div key={step.id} className="relative z-10 flex flex-col items-center">
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono font-bold transition-all ${
                   isCurrent 
-                    ? 'bg-[#C26747] text-white ring-4 ring-[#C26747]/20 scale-110' 
+                    ? 'bg-[#155E91] text-white ring-4 ring-[#155E91]/20 scale-110' 
                     : isCompleted 
                     ? 'bg-emerald-600 text-white' 
                     : 'bg-white border-2 border-slate-300 text-slate-400'
@@ -92,42 +94,44 @@ export default function TransactionCard({ data, onAction }) {
             );
           })}
         </div>
-        <div className="flex justify-between text-[9px] text-slate-400 font-mono mt-2">
-          <span>Order Placed</span>
-          <span>Escrow Secured</span>
-          <span>Weighment</span>
-          <span>RTGS Released</span>
+        <div className="flex justify-between text-[9px] text-slate-400 font-mono mt-2 px-1">
+          <span>1. Issued</span>
+          <span>2. Funded</span>
+          <span>3. Dispatch</span>
+          <span>4. Assay</span>
+          <span>5. Accept</span>
+          <span>6. Settled</span>
         </div>
       </div>
 
-      {/* Status Details */}
-      <div className="pt-3 text-xs space-y-1 font-sans">
-        <div className="flex justify-between text-[11px]">
-          <span className="text-slate-500">Payment:</span>
-          <span className="font-medium text-emerald-700">{paymentStatus}</span>
-        </div>
-        <div className="flex justify-between text-[11px]">
-          <span className="text-slate-500">Delivery:</span>
-          <span className="font-medium text-slate-800">{deliveryStatus}</span>
-        </div>
-        <div className="flex justify-between text-[11px]">
-          <span className="text-slate-500">Settlement:</span>
-          <span className="font-medium text-slate-800">{settlementStatus}</span>
-        </div>
-      </div>
+      {/* Actions */}
+      <div className="mt-3 pt-2.5 flex items-center justify-between gap-2">
+        <button
+          onClick={() => onAction?.('VIEW_CONTRACT_NOTE', data)}
+          className="text-[#62676D] hover:text-[#17191C] font-semibold text-xs flex items-center gap-1 cursor-pointer transition-colors"
+        >
+          <FileText className="w-3.5 h-3.5" />
+          <span>View Contract Note</span>
+        </button>
 
-      {/* Terminal View Link */}
-      {onAction && (
-        <div className="mt-3 pt-2.5 border-t border-black/[0.06] flex items-center justify-end">
+        {canPayEscrow ? (
           <button
-            onClick={() => onAction('VIEW_CONTRACT_NOTE', data)}
-            className="text-[#C26747] hover:underline font-bold text-xs flex items-center gap-1 cursor-pointer">
-            <FileText className="w-3.5 h-3.5" />
-            <span>Open Contract Note in Terminal</span>
+            onClick={() => onAction?.('PAY_ESCROW', data)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#155E91] hover:bg-[#114B75] text-white font-heading font-extrabold text-xs shadow-xs transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <CreditCard className="w-3.5 h-3.5" />
+            <span>Pay Escrow (₹{Number(totalEscrow).toLocaleString()})</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => onAction?.('VIEW_TRANSACTIONS', data)}
+            className="text-[#155E91] hover:underline font-bold text-xs flex items-center gap-1 cursor-pointer"
+          >
+            <span>Open in Settlements</span>
             <ArrowRight className="w-3 h-3" />
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

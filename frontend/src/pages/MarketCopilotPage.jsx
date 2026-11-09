@@ -178,6 +178,15 @@ export default function MarketCopilotPage({
         break;
 
       case 'VIEW_CONTRACT_NOTE':
+      case 'VIEW_TRANSACTIONS':
+        if (onNavigateTab) {
+          onNavigateTab('contracts');
+        } else {
+          navigate('/market-mandi/transactions');
+        }
+        break;
+
+      case 'PAY_ESCROW':
         if (onNavigateTab) {
           onNavigateTab('contracts');
         } else {

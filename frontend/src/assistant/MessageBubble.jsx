@@ -54,8 +54,10 @@ export default function MessageBubble({ message, onAction }) {
         return <BuyerCard key={card.data?.commodity || Math.random()} data={card.data} onAction={onAction} />;
       case 'booking':
         return <BookingCard key={card.data?.bookingId || Math.random()} data={card.data} onAction={onAction} />;
+      case 'escrow':
+      case 'escrow_payment':
       case 'transaction':
-        return <TransactionCard key={card.data?.orderId || Math.random()} data={card.data} onAction={onAction} />;
+        return <TransactionCard key={card.data?.orderId || card.data?.contractNumber || Math.random()} data={card.data} onAction={onAction} />;
       case 'disease':
         return <DiseaseScanCard key={card.data?.diseaseName || Math.random()} data={card.data} onAction={onAction} />;
       case 'recommendation':

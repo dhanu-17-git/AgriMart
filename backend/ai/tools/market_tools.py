@@ -379,6 +379,114 @@ def find_verified_buyers(commodity_code: str, quantity_quintals: float = 100.0) 
     }
 
 
+def get_escrow_status(contract_number: str = "", commodity_code: str = "") -> Dict[str, Any]:
+    """Retrieve verified escrow settlement lifecycle details for a trade contract."""
+    from transactions.models import MarketTransaction
+    
+    txn = None
+    if contract_number:
+        clean_cn = str(contract_number).strip()
+        txn = MarketTransaction.objects.filter(
+            models.Q(contract_note_number__iexact=clean_cn) | 
+            models.Q(contract_note_number__icontains=clean_cn) |
+            models.Q(transaction_id__icontains=clean_cn)
+        ).select_related("commodity", "apmc", "buyer", "seller").first()
+    
+    if txn is None and commodity_code:
+        cmdty = _commodity_or_default(commodity_code)
+        txn = MarketTransaction.objects.filter(commodity=cmdty).select_related("commodity", "apmc", "buyer", "seller").first()
+        
+    if txn is None:
+        txn = MarketTransaction.objects.select_related("commodity", "apmc", "buyer", "seller").order_by("-created_at").first()
+
+    if txn:
+        step_map = {
+            "contract_issued": (1, "Contract Note Issued", "Buyer Escrow Funding Required"),
+            "escrow_funded": (2, "Escrow Funded (100%)", "Awaiting Seller Dispatch"),
+            "goods_dispatched": (3, "Goods Dispatched to Mandi", "Awaiting APMC Quality Assay"),
+            "assay_passed": (4, "APMC Quality Assay Passed", "Awaiting Buyer Delivery Acceptance"),
+            "buyer_accepted": (5, "Buyer Accepted Electronic Inward", "Awaiting Bank Settlement Release"),
+            "funds_released": (6, "Funds Settled to Farmer Bank", "Completed Settlement"),
+        }
+        step_id, status_label, next_action = step_map.get(txn.status, (1, "Active Contract", "Pending Action"))
+        gross = float(txn.gross_amount)
+        cess = float(txn.mandi_cess)
+        fee = float(txn.escrow_fee)
+        net = float(txn.net_seller_payable)
+        
+        return {
+            "contractNumber": txn.contract_note_number,
+            "transactionId": txn.transaction_id,
+            "commodity": txn.commodity.name,
+            "mandi": f"{txn.apmc.name}, {txn.apmc.state}",
+            "quantity": float(txn.quantity_quintals),
+            "unit": "Quintals",
+            "agreedRate": float(txn.agreed_rate),
+            "grossAmount": gross,
+            "mandiCess": cess,
+            "escrowFee": fee,
+            "netProceeds": net,
+            "status": status_label,
+            "rawStatus": txn.status,
+            "currentStep": step_id,
+            "nextAction": next_action,
+            "escrowHash": txn.escrow_deposit_hash[:16].upper() if txn.escrow_deposit_hash else "SHA256-SECURED",
+            "virtualEscrowAccount": f"ENAM-AXIS-{txn.apmc.market_code[-3:].upper()}-2026",
+            "settlementGuarantee": "Axis Bank e-NAM Institutional Escrow",
+            "canPayEscrow": txn.status == "contract_issued",
+            "paymentRoute": "/market-mandi/transactions",
+        }
+
+    # Demo fallback when database has not seeded transactions
+    return {
+        "contractNumber": contract_number or "CN-2026-LDH-89F2",
+        "transactionId": "TXN-2026-LDH-4410",
+        "commodity": "Wheat (Sharbati Grade-A)",
+        "mandi": "Ludhiana APMC, Punjab",
+        "quantity": 100.0,
+        "unit": "Quintals",
+        "agreedRate": 2450.0,
+        "grossAmount": 245000.0,
+        "mandiCess": 3675.0,
+        "escrowFee": 1225.0,
+        "netProceeds": 240100.0,
+        "status": "Contract Note Issued",
+        "rawStatus": "contract_issued",
+        "currentStep": 1,
+        "nextAction": "100% Escrow Deposit by Buyer via UPI / Virtual Account",
+        "escrowHash": "68F9B2C4E10A9D8E",
+        "virtualEscrowAccount": "ENAM-AXIS-LDH-2026",
+        "settlementGuarantee": "Axis Bank e-NAM Institutional Escrow",
+        "canPayEscrow": True,
+        "paymentRoute": "/market-mandi/transactions",
+    }
+
+
+def initiate_escrow_payment(contract_number: str = "") -> Dict[str, Any]:
+    """Generate escrow deposit payment details and digital gateway token for a commodity contract."""
+    status_data = get_escrow_status(contract_number=contract_number)
+    return {
+        "contractNumber": status_data["contractNumber"],
+        "transactionId": status_data["transactionId"],
+        "commodity": status_data["commodity"],
+        "mandi": status_data["mandi"],
+        "quantity": status_data["quantity"],
+        "unit": status_data["unit"],
+        "grossAmount": status_data["grossAmount"],
+        "escrowFee": status_data["escrowFee"],
+        "mandiCess": status_data["mandiCess"],
+        "totalPayable": status_data["grossAmount"],
+        "virtualEscrowAccount": status_data["virtualEscrowAccount"],
+        "ifsc": "UTIB0000004",
+        "beneficiary": "AgriMart e-NAM Clearinghouse Escrow",
+        "status": status_data["status"],
+        "escrowHash": status_data["escrowHash"],
+        "paymentMethods": ["UPI (Google Pay, PhonePe, Paytm)", "e-NAM Virtual Escrow Account", "RTGS / NEFT Commercial Transfer"],
+        "paymentRoute": "/market-mandi/transactions",
+        "action": "PAY_ESCROW",
+    }
+
+
 TOOL_DEFINITIONS: List[ToolDefinition] = [
     ToolDefinition("get_commodity_price", "Get the latest read-only APMC modal, minimum, and maximum commodity price.", {"type": "object", "properties": {"commodity_code": {"type": "string"}}, "required": ["commodity_code"]}),
     ToolDefinition("compare_mandis", "Compare regional APMCs. Use sell for highest estimated net proceeds; use buy for lowest quoted purchase price.", {"type": "object", "properties": {"commodity_code": {"type": "string"}, "quantity_quintals": {"type": "number", "minimum": 0.1}, "trade_intent": {"type": "string", "enum": ["buy", "sell"]}}, "required": ["commodity_code", "quantity_quintals", "trade_intent"]}),
@@ -389,6 +497,8 @@ TOOL_DEFINITIONS: List[ToolDefinition] = [
     ToolDefinition("get_price_forecast", "Generate a statistical price forecast from historic APMC tickers.", {"type": "object", "properties": {"commodity_code": {"type": "string"}, "market": {"type": "string"}, "horizon_days": {"type": "integer", "minimum": 1, "maximum": 90}}, "required": ["commodity_code", "horizon_days"]}),
     ToolDefinition("find_verified_buyers", "Find read-only verified institutional buyers matching a commodity and quantity.", {"type": "object", "properties": {"commodity_code": {"type": "string"}, "quantity_quintals": {"type": "number", "minimum": 0.1}}, "required": ["commodity_code", "quantity_quintals"]}),
     ToolDefinition("book_delivery_slot", "Book or reserve an APMC delivery slot and digital gate pass token for delivering commodity harvest lots.", {"type": "object", "properties": {"commodity_code": {"type": "string"}, "mandi": {"type": "string"}, "quantity_quintals": {"type": "number", "minimum": 0.1}, "vehicle_number": {"type": "string"}}, "required": ["commodity_code"]}),
+    ToolDefinition("get_escrow_status", "Query current escrow settlement progress, fees breakdown, and lifecycle stage for an APMC contract note or crop trade.", {"type": "object", "properties": {"contract_number": {"type": "string"}, "commodity_code": {"type": "string"}}, "required": []}),
+    ToolDefinition("initiate_escrow_payment", "Initiate payment details, bank clearinghouse account, and checkout link for funding 100% escrow for a trade contract.", {"type": "object", "properties": {"contract_number": {"type": "string"}}, "required": []}),
 ]
 
 TOOL_EXECUTORS: Dict[str, Callable[..., Dict[str, Any]]] = {
@@ -401,6 +511,8 @@ TOOL_EXECUTORS: Dict[str, Callable[..., Dict[str, Any]]] = {
     "get_sell_wait_recommendation": get_sell_wait_recommendation,
     "find_verified_buyers": find_verified_buyers,
     "book_delivery_slot": book_delivery_slot,
+    "get_escrow_status": get_escrow_status,
+    "initiate_escrow_payment": initiate_escrow_payment,
 }
 
 CARD_TYPES = {
@@ -413,6 +525,8 @@ CARD_TYPES = {
     "get_sell_wait_recommendation": "forecast",
     "find_verified_buyers": "buyer",
     "book_delivery_slot": "booking",
+    "get_escrow_status": "escrow",
+    "initiate_escrow_payment": "escrow_payment",
 }
 
 

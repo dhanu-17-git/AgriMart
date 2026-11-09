@@ -64,7 +64,8 @@ export default function FloatingCopilotDrawer({
     } else if (type === 'BOOK_SLOT') {
       onSelectMandiTab?.('arrivals');
       onNavigateView?.('terminal');
-    } else if (type === 'VIEW_TRANSACTIONS') {
+    } else if (type === 'VIEW_TRANSACTIONS' || type === 'VIEW_CONTRACT_NOTE' || type === 'PAY_ESCROW') {
+      onSelectMandiTab?.('contracts');
       onNavigateView?.('transactions');
     }
   };

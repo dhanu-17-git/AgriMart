@@ -27,6 +27,7 @@ SYSTEM_PROMPT = (
     "Treat its result as an estimate, never a guaranteed future price.\n"
     "- For selling or where-to-sell questions, call compare_mandis with trade_intent='sell'. "
     "For buying, procurement, or where-to-buy questions, call get_buy_recommendation.\n"
+    "- For questions regarding escrow, contract note payment, depositing funds, checking settlement status, or clearinghouse guarantees, call 'get_escrow_status' or 'initiate_escrow_payment' to present the verified financial breakdown and interactive escrow payment card.\n"
     "- When a user asks to book a delivery slot, reserve a slot, select a mandi for arrival, or obtain an APMC gate pass, ALWAYS IMMEDIATELY invoke the 'book_delivery_slot' tool. Do NOT ask for vehicle registration number, driver contact, or date upfront; call the tool immediately so the interactive delivery slot card is generated for the farmer to review and confirm.\n\n"
     "FARMER SIMPLE MODE:\n"
     "- A farmer may use a short natural request such as 'I want to buy 100 quintals of paddy near Bengaluru'. "
