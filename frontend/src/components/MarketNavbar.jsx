@@ -5,7 +5,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Scale, FileText, ArrowLeft, User, Search, ShieldCheck,
-  TrendingUp, Activity, Landmark, Sparkles
+  TrendingUp, Activity, Landmark, Sparkles, CreditCard
 } from 'lucide-react';
 
 export default function MarketNavbar({
@@ -75,8 +75,16 @@ export default function MarketNavbar({
             </div>
           </div>
 
-          {/* User Account & AGMARKNET Telemetry */}
+          {/* User Account & Escrow Payment Quick Action */}
           <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              onClick={() => onSelectMandiTab('contracts')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#155E91] hover:bg-[#114B75] text-white text-xs font-heading font-extrabold shadow-2xs transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+              title="Open Escrow Payments & Contract Settlements">
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Payments &amp; Escrow</span>
+            </button>
+
             <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#155E91] bg-[#F8FAFB] px-3 py-1.5 rounded-full border border-[#E8E9E7] font-mono font-medium shadow-2xs">
               <ShieldCheck className="w-3.5 h-3.5 text-[#155E91]" />
               <span>AGMARKNET</span>
@@ -145,12 +153,12 @@ export default function MarketNavbar({
 
             <button
               onClick={() => onSelectMandiTab('contracts')}
-              className={`py-1 relative flex items-center gap-1.5 transition-colors cursor-pointer ${mandiTab === 'contracts' ? 'text-[#17191C] font-bold' : 'text-[#62676D] hover:text-[#17191C]'
+              className={`py-1 relative flex items-center gap-1.5 transition-colors cursor-pointer ${mandiTab === 'contracts' ? 'text-[#155E91] font-extrabold' : 'text-[#62676D] hover:text-[#17191C]'
                 }`}>
-              <FileText className="w-3.5 h-3.5 text-[#16845B]" />
-              <span>Contract Notes &amp; Escrow</span>
+              <CreditCard className="w-3.5 h-3.5 text-[#155E91]" />
+              <span>Payments &amp; Escrow</span>
               {mandiTab === 'contracts' && (
-                <span className="absolute -bottom-2.5 left-0 right-0 h-0.5 bg-[#17191C] rounded-full" />
+                <span className="absolute -bottom-2.5 left-0 right-0 h-0.5 bg-[#155E91] rounded-full" />
               )}
             </button>
 

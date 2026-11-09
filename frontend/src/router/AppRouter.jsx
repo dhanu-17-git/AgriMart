@@ -16,8 +16,11 @@ import NotFoundPage from '../pages/NotFoundPage';
 export default function AppRouter() {
   return (
     <Routes>
-      {/* Central Landing Page */}
+      {/* Central Landing Page & Global Shortcuts */}
       <Route path="/" element={<LandingWrapper />} />
+      <Route path="/payments" element={<Navigate to="/market-mandi/payments" replace />} />
+      <Route path="/escrow" element={<Navigate to="/market-mandi/payments" replace />} />
+      <Route path="/transactions" element={<Navigate to="/market-mandi/payments" replace />} />
 
       {/* ==========================================================
           AG STORE & RENTALS MODULE (/store-rental/*)
@@ -56,6 +59,8 @@ export default function AppRouter() {
       <Route path="/market-mandi/auctions" element={<MarketMandiApp />} />
       <Route path="/market-mandi/bids" element={<MarketMandiApp />} />
       <Route path="/market-mandi/transactions" element={<MarketMandiApp />} />
+      <Route path="/market-mandi/payments" element={<MarketMandiApp />} />
+      <Route path="/market-mandi/escrow" element={<MarketMandiApp />} />
       <Route path="/market-mandi/copilot" element={<MarketMandiApp />} />
 
       {/* Cross-domain protection: redirect Store paths requested under /market-mandi */}

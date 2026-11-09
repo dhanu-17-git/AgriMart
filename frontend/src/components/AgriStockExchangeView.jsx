@@ -1820,10 +1820,16 @@ export default function AgriStockExchangeView({ activeTab, onTabChange }) {
             <span className="text-[10px] text-[#70777F] block font-sans uppercase font-bold tracking-wider mb-0.5">24h Physical Volume</span>
             <span className="text-lg font-bold text-[#17191C] font-mono">38,420 Qtl</span>
           </div>
-          <div className="px-5 py-3 rounded-2xl bg-white border border-[#E8E9E7] shadow-xs">
-            <span className="text-[10px] text-[#70777F] block font-sans uppercase font-bold tracking-wider mb-0.5">Escrow Guaranteed</span>
+          <div 
+            onClick={() => onSelectTab && onSelectTab('contracts')}
+            className="px-5 py-3 rounded-2xl bg-white hover:bg-[#F8FAFB] border border-[#E8E9E7] shadow-xs cursor-pointer group transition-all"
+            title="Click to open Payments & Escrow Hub">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-[#70777F] block font-sans uppercase font-bold tracking-wider mb-0.5">Escrow Guaranteed</span>
+              <span className="text-[10px] text-[#155E91] font-bold hidden sm:inline opacity-80 group-hover:opacity-100 transition-opacity">Pay Escrow &rarr;</span>
+            </div>
             <span className="text-lg font-bold text-[#17191C] font-mono">
-              ₹9.24 Cr <span className="text-xs font-semibold text-[#C47A37] ml-0.5">Locked</span>
+              ₹9.24 Cr <span className="text-xs font-semibold text-[#155E91] ml-0.5">Locked</span>
             </span>
           </div>
         </div>
