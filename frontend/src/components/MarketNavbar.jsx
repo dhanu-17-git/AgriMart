@@ -20,13 +20,13 @@ export default function MarketNavbar({
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E8E9E7] transition-all">
       {/* Main Header Bar */}
       <div className="max-w-[1400px] mx-auto px-4 sm:px-8">
-        <div className="flex items-center justify-between h-18 gap-4 sm:gap-8">
+        <div className="flex items-center justify-between h-16 gap-4 sm:gap-6">
 
-          {/* Clean Brandmark + Portal Return */}
-          <div className="flex items-center gap-3.5 shrink-0">
+          {/* Left: Portal Return & Brandmark */}
+          <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => navigate('/')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F8FAFB] hover:bg-[#F5F5F2] text-[#62676D] hover:text-[#17191C] text-xs font-semibold font-heading transition-colors border border-[#E8E9E7] shadow-2xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F8FAFB] hover:bg-[#F2F4F7] text-[#62676D] hover:text-[#17191C] text-xs font-semibold font-heading transition-colors border border-[#E8E9E7] shadow-2xs cursor-pointer"
               title="Return to AgriMart Central Portal"
             >
               <ArrowLeft className="w-3.5 h-3.5 stroke-[2.2]" />
@@ -40,63 +40,55 @@ export default function MarketNavbar({
               <img 
                 src="/assets/logos/official-ag-market-icon.png" 
                 alt="AG Market Official Logo" 
-                className="h-9 w-9 sm:h-10 sm:w-10 object-contain shrink-0 drop-shadow-2xs group-hover:scale-105 transition-transform" 
+                className="h-9 w-9 object-contain shrink-0 drop-shadow-2xs group-hover:scale-105 transition-transform" 
               />
               <div className="flex flex-col">
-                <span className="text-xl sm:text-2xl font-extrabold tracking-tight font-heading leading-tight text-[#17191C]">
+                <span className="text-xl font-extrabold tracking-tight font-heading leading-tight text-[#17191C]">
                   AG Market
                 </span>
-                <span className="text-[8.5px] sm:text-[9.5px] tracking-wider uppercase font-mono font-bold -mt-0.5 text-[#70777F]">
+                <span className="text-[8.5px] tracking-wider uppercase font-mono font-bold -mt-0.5 text-[#70777F]">
                   Mandi &bull; Trade &bull; Market Intelligence
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Minimal Live Radar Pill */}
-          <div className="hidden md:flex items-center bg-[#F8FAFB] px-3.5 py-1.5 rounded-full border border-[#E8E9E7] shrink-0 gap-2 shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-[#C47A37] animate-pulse" />
-            <span className="text-xs font-semibold text-[#17191C] font-heading">
-              APMC Live Exchange Radar
-            </span>
-            <span className="text-[10px] text-[#70777F] font-mono hidden lg:inline">&bull; AGMARKNET Verified</span>
-          </div>
-
-          {/* Quiet, Minimal Search Input */}
-          <div className="hidden lg:flex flex-1 max-w-sm">
-            <div className="w-full flex items-center justify-between px-3.5 py-2 bg-[#F8FAFB] hover:bg-white text-[#62676D] text-xs rounded-xl border border-[#E8E9E7] focus-within:border-[#155E91] focus-within:bg-white transition-all shadow-2xs">
-              <div className="flex items-center gap-2 min-w-0">
-                <Search className="w-3.5 h-3.5 text-[#70777F] shrink-0" />
-                <span className="truncate text-xs text-[#92979D]">Search ticker, crop, or APMC mandi...</span>
+          {/* Center: Smooth, Professional Centered Search Bar */}
+          <div className="hidden md:flex flex-1 justify-center max-w-xl mx-2 sm:mx-6">
+            <div className="w-full max-w-md flex items-center justify-between px-3.5 py-2 bg-[#F8FAFB] hover:bg-white focus-within:bg-white text-[#62676D] rounded-full border border-[#E8E9E7] hover:border-[#D1D5DB] focus-within:border-[#155E91] focus-within:ring-2 focus-within:ring-[#155E91]/15 transition-all shadow-2xs">
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <Search className="w-4 h-4 text-[#70777F] shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Search commodities, APMC mandis, live auctions..."
+                  className="w-full bg-transparent border-0 outline-none text-xs text-[#17191C] placeholder:text-[#92979D] font-sans"
+                />
               </div>
-              <kbd className="text-[10px] font-mono text-[#70777F] bg-white px-1.5 py-0.5 rounded border border-[#E8E9E7]">
+              <kbd className="text-[10px] font-mono font-medium text-[#70777F] bg-white px-2 py-0.5 rounded-md border border-[#E8E9E7] shadow-2xs ml-2 shrink-0">
                 ⌘K
               </kbd>
             </div>
           </div>
 
-          {/* User Account & Escrow Payment Quick Action */}
+          {/* Right: Escrow Action & Trader Account */}
           <div className="flex items-center gap-2.5 shrink-0">
             <button
               onClick={() => onSelectMandiTab('contracts')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#155E91] hover:bg-[#114B75] text-white text-xs font-heading font-extrabold shadow-2xs transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#155E91] hover:bg-[#114B75] text-white text-xs font-heading font-extrabold shadow-2xs transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               title="Open Escrow Payments & Contract Settlements">
               <CreditCard className="w-3.5 h-3.5" />
               <span>Payments &amp; Escrow</span>
             </button>
 
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#155E91] bg-[#F8FAFB] px-3 py-1.5 rounded-full border border-[#E8E9E7] font-mono font-medium shadow-2xs">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#155E91]" />
-              <span>AGMARKNET</span>
-            </div>
-
             {/* Trader Profile */}
             <button
               onClick={onOpenLogin}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#17191C] hover:bg-[#F8FAFB] border border-[#E8E9E7] rounded-full transition-colors font-medium shadow-2xs"
+              className="flex items-center gap-2 px-3 py-1.5 text-xs text-[#17191C] hover:bg-[#F8FAFB] border border-[#E8E9E7] rounded-full transition-colors font-medium shadow-2xs cursor-pointer"
               aria-label="Trader Account">
-              <User className="w-4 h-4 text-[#70777F]" />
-              <span className="hidden sm:inline">
+              <div className="w-5 h-5 rounded-full bg-[#155E91]/10 flex items-center justify-center text-[#155E91] font-bold text-[10px]">
+                {user?.name ? user.name.charAt(0).toUpperCase() : <User className="w-3 h-3 text-[#70777F]" />}
+              </div>
+              <span className="hidden sm:inline font-heading font-semibold text-xs">
                 {user ? (user.name ? user.name.split(' ')[0] : 'Trader') : 'Trader Sign In'}
               </span>
             </button>
