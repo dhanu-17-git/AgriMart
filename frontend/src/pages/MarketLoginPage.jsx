@@ -52,7 +52,7 @@ export default function MarketLoginPage() {
       description="Explore mandi opportunities, commodity intelligence and smarter agricultural trading."
       registerPrompt="New to AgriMart?"
       registerRoute="/market-mandi/register"
-      heroImageSrc="/assets/web/ag-market-ref-hero.png"
+      heroImageSrc="/assets/web/ag-market-login-card.png"
       heroAlt="AG Market APMC Trading Engine"
       features={marketFeatures}
       destinationRoute="/market-mandi/app"

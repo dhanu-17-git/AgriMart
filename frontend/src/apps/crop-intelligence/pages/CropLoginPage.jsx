@@ -59,7 +59,7 @@ export default function CropLoginPage() {
       description="Understand your soil, protect your crops and make smarter cultivation decisions."
       registerPrompt="New to AgriMart?"
       registerRoute="/crop-intelligence/register"
-      heroImageSrc="/assets/web/ag-crop-ref-hero.png"
+      heroImageSrc="/assets/web/ag-crop-login-card.png"
       heroAlt="AG Crop Diagnostics and Soil Intelligence"
       features={cropFeatures}
       destinationRoute={destination}

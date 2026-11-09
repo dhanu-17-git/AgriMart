@@ -52,7 +52,7 @@ export default function StoreLoginPage() {
       description="Everything your farm needs. From trusted agricultural inputs to dependable equipment rentals."
       registerPrompt="New to AgriMart?"
       registerRoute="/store-rental/register"
-      heroImageSrc="/assets/web/ag-store-ref-hero.png"
+      heroImageSrc="/assets/web/ag-store-login-card.png"
       heroAlt="AG Store Seed, Fleet & Equipment at Scale"
       features={storeFeatures}
       destinationRoute="/store-rental/app"
