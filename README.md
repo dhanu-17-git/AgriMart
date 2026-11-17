@@ -246,21 +246,6 @@ See [`backend/.env.example`](backend/.env.example) for the full list.
 
 ---
 
-## Team
-
-Built at **NIE Mysuru** — B.E. CSE (AI & ML), 2026-27 Minor Project.
-
-| Name | USN |
-|------|-----|
-| Darshan V | 4NI24CI035 |
-| Dhanush M | 4NI24CI038 |
-| Gandham Raja Reddy | 4NI24CI044 |
-| Harsha D K | 4NI24CI048 |
-
-**Guide:** Divyashree R, Dept. of CSE (AI & ML), NIE Mysuru.
-
----
-
 ## License
 
-Academic project. Not licensed for commercial distribution.
+MIT License Copyright (c) 2026 DHANUSH M.
