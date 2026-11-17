@@ -78,17 +78,22 @@ export default function SoilReportPage({ onTransferToRecommendation }) {
       setReportData(response);
       
       const extracted = response.extracted_parameters || {};
-      setParameters({
-        nitrogen: extracted.nitrogen ?? 120,
-        phosphorus: extracted.phosphorus ?? 35,
-        potassium: extracted.potassium ?? 150,
-        ph: extracted.ph ?? 6.8,
-        organic_carbon: extracted.organic_carbon ?? 0.55,
-        electrical_conductivity: extracted.electrical_conductivity ?? 0.42
-      });
+      const extractedCount = Object.keys(extracted).length;
+      setParameters(prev => ({
+        nitrogen: extracted.nitrogen ?? prev.nitrogen,
+        phosphorus: extracted.phosphorus ?? prev.phosphorus,
+        potassium: extracted.potassium ?? prev.potassium,
+        ph: extracted.ph ?? prev.ph,
+        organic_carbon: extracted.organic_carbon ?? prev.organic_carbon,
+        electrical_conductivity: extracted.electrical_conductivity ?? prev.electrical_conductivity
+      }));
 
       setIsConfirmed(false);
-      setSuccessNotice('Soil Health Card parsed successfully. Please review and confirm the extracted values.');
+      if (extractedCount > 0) {
+        setSuccessNotice(response.parsing_notes || 'Soil Health Card parsed successfully. Please review and confirm the extracted values.');
+      } else {
+        setErrorMessage(response.parsing_notes || 'No structured soil parameters were found; please enter values manually.');
+      }
     } catch (err) {
       console.error('Soil Report OCR Error:', err);
       setErrorMessage(err.message || 'Failed to parse soil report. You can manually enter values below.');
@@ -133,7 +138,7 @@ export default function SoilReportPage({ onTransferToRecommendation }) {
   };
 
   const getConfidenceBadge = (key) => {
-    const score = reportData?.confidence_scores?.[key] ?? 0.8;
+    const score = reportData?.confidence_scores?.[key] ?? 0;
     if (score >= 0.85) {
       return (
         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -211,9 +216,17 @@ export default function SoilReportPage({ onTransferToRecommendation }) {
                 className="hidden"
               />
 
-              <div className="w-14 h-14 rounded-2xl bg-[#0284C7]/10 group-hover:bg-[#0284C7]/20 border border-[#0284C7]/20 flex items-center justify-center text-[#0284C7] mb-3 transition-transform group-hover:scale-105">
-                <Upload className="w-6 h-6 stroke-[2]" />
-              </div>
+              {filePreview ? (
+                <img
+                  src={filePreview}
+                  alt="Soil Health Card Preview"
+                  className="max-h-40 rounded-xl object-contain mb-3 border border-black/[0.08] shadow-xs"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-2xl bg-[#0284C7]/10 group-hover:bg-[#0284C7]/20 border border-[#0284C7]/20 flex items-center justify-center text-[#0284C7] mb-3 transition-transform group-hover:scale-105">
+                  <Upload className="w-6 h-6 stroke-[2]" />
+                </div>
+              )}
 
               <p className="text-sm font-bold font-heading text-[#121212] mb-1">
                 {selectedFile ? selectedFile.name : 'Click or drop Soil Health Card here'}

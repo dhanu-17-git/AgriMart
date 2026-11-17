@@ -1,3 +1,4 @@
+import os
 from decimal import Decimal
 
 from rest_framework import status
@@ -20,6 +21,7 @@ from ai.ml.disease_detector.classifier import (
 )
 from ai.ml.disease_detector.fallback_engine import lookup_symptoms
 from ai.ml.ocr.report_parser import parse_soil_report
+from ai.ml.ollama_client import OllamaUnavailableError, call_ollama_json
 from ai.models import CropRecommendationRecord, CropScan, SoilReport
 from ai.serializers import (
     CropRecommendationRecordSerializer,
@@ -186,7 +188,9 @@ class DiseaseDetectionView(APIView):
             return Response(
                 {
                     "status": "low_confidence",
+                    "detected_plant": diagnosis.get("detected_plant") or crop_hint or "Unidentified Specimen",
                     "message": diagnosis.get("message", "Unable to detect plant leaf in uploaded image."),
+                    "observed_signs": diagnosis.get("observed_signs", ""),
                     "recommendation": "Please upload a clear, well-lit photo of the infected crop leaf.",
                 },
                 status=status.HTTP_200_OK,
@@ -224,14 +228,16 @@ class DiseaseDetectionView(APIView):
         return Response(
             {
                 "scan_id": str(scan.id),
-                "status": "success",
+                "status": diagnosis.get("status", "success"),
                 "crop": crop_name,
+                "detected_plant": diagnosis.get("detected_plant") or crop_name,
                 "disease_name": diagnosed_disease,
                 "pathogen_type": pathogen_type,
                 "severity_level": scan.severity or None,
                 "confidence": float(scan.confidence) if scan.confidence is not None else None,
                 "symptoms": diagnosis.get("clinical_symptoms") or diagnosis.get("symptoms", ""),
                 "treatment_plan": treatment_plan,
+                "model": os.getenv("OLLAMA_VISION_MODEL", "local-vision"),
                 "created_at": scan.created_at.isoformat(),
             },
             status=status.HTTP_201_CREATED,
@@ -352,6 +358,79 @@ class AIHistoryView(APIView):
                 "scans": CropScanSerializer(scans, many=True).data,
                 "soil_reports": SoilReportSerializer(soil_reports, many=True).data,
                 "recommendations": CropRecommendationRecordSerializer(recs, many=True).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class CropAgronomicAdvisoryView(APIView):
+    """
+    Generates a structured agronomic brief via the configured local Ollama LLM (`qwen2.5vl:7b`)
+    strictly formatted for the AG Crop recommendation template.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        data = request.data or {}
+        crop = str(data.get("crop") or "Recommended Crop").strip()
+        nitrogen = data.get("nitrogen", 120)
+        phosphorus = data.get("phosphorus", 40)
+        potassium = data.get("potassium", 150)
+        ph = data.get("ph", 6.8)
+        rainfall = data.get("rainfall", 120)
+        temperature = data.get("temperature", 26)
+        humidity = data.get("humidity", 70)
+        shi = data.get("soil_health_index", 75)
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "executive_summary": {"type": "string"},
+                "soil_correction_steps": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "irrigation_schedule": {"type": "string"},
+                "harvest_risk_notes": {"type": "string"},
+            },
+            "required": [
+                "executive_summary",
+                "soil_correction_steps",
+                "irrigation_schedule",
+                "harvest_risk_notes",
+            ],
+            "additionalProperties": False,
+        }
+        prompt = (
+            f"You are an Indian ICAR agronomy assistant. Generate a concise structured field brief for {crop}. "
+            f"Soil metrics: N={nitrogen} mg/kg, P={phosphorus} mg/kg, K={potassium} mg/kg, "
+            f"pH={ph}, Soil Health Index={shi}/100. "
+            f"Climate: Rainfall={rainfall} mm, Temp={temperature} C, Humidity={humidity}%. "
+            "Treat pH 6.0-7.5 as neutral (only suggest lime if pH < 6.0, gypsum if pH > 8.0). "
+            "Keep executive_summary, irrigation_schedule, and harvest_risk_notes to 1-2 brief sentences each, "
+            "and provide 2-3 short actionable bullet strings in soil_correction_steps."
+        )
+        model = os.getenv("OLLAMA_VISION_MODEL", "")
+        try:
+            advisory = call_ollama_json(
+                prompt,
+                schema,
+                model=model,
+                num_predict=260,
+                num_ctx=1536,
+            )
+        except OllamaUnavailableError as exc:
+            return Response(
+                {"status": "model_unavailable", "message": str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        return Response(
+            {
+                "status": "success",
+                "model": model,
+                "crop": crop,
+                "advisory": advisory,
             },
             status=status.HTTP_200_OK,
         )

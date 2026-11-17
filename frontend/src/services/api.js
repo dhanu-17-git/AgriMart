@@ -1,7 +1,7 @@
 // src/services/api.js
 // AgriMart Unified API Client for Django Core (Port 8000) & FastAPI Realtime (Port 8001)
 
-const DJANGO_BASE_URL = import.meta.env.VITE_DJANGO_URL || 'http://127.0.0.1:8002';
+const DJANGO_BASE_URL = import.meta.env.VITE_DJANGO_URL || 'http://127.0.0.1:8000';
 const FASTAPI_BASE_URL = import.meta.env.VITE_FASTAPI_URL || 'http://127.0.0.1:8001';
 
 async function refreshAccessToken() {
@@ -27,13 +27,20 @@ async function refreshAccessToken() {
 }
 
 async function fetchWithAuthRecovery(endpoint, options, isUpload = false) {
-  const request = (token) => {
+  const request = async (token) => {
     const headers = {
       ...(!isUpload ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     };
-    return fetch(`${DJANGO_BASE_URL}${endpoint}`, { ...options, headers });
+    try {
+      return await fetch(`${DJANGO_BASE_URL}${endpoint}`, { ...options, headers });
+    } catch (err) {
+      if (err instanceof TypeError) {
+        throw new Error(`Cannot reach AgriMart backend at ${DJANGO_BASE_URL}. Ensure the Django server is running on port 8000.`);
+      }
+      throw err;
+    }
   };
 
   const originalToken = localStorage.getItem('agrimart_access_token');
@@ -264,6 +271,16 @@ export async function apiSymptomLookup(crop, symptoms) {
  */
 export async function apiCropRecommend(payload) {
   return apiRequest('/api/v1/crop-intelligence/recommend/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * AI Crop Intelligence: Local LLM Agronomic Brief (Qwen2.5-VL)
+ */
+export async function apiCropAiAdvisory(payload) {
+  return apiRequest('/api/v1/crop-intelligence/advisory/', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

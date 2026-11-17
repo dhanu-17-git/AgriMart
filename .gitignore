@@ -14,6 +14,7 @@ __pycache__/
 *.sqlite3
 db.sqlite3
 .pytest_cache/
+.ruff_cache/
 .venv/
 venv/
 ENV/
@@ -45,3 +46,4 @@ image/
 Thumbs.db
 ~$*
 *.tmp
+*.docx

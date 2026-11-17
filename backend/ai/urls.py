@@ -3,9 +3,10 @@ from django.urls import path
 from ai import views
 
 urlpatterns = [
-    # Crop Recommendation
+    # Crop Recommendation & Local LLM Advisory
     path("recommend/", views.CropRecommendationView.as_view(), name="crop-recommend"),
     path("crop-recommend/", views.CropRecommendationView.as_view(), name="ai-crop-recommend"),
+    path("advisory/", views.CropAgronomicAdvisoryView.as_view(), name="crop-ai-advisory"),
 
     # Disease Detection & Symptom Lookup
     path("disease-scan/", views.DiseaseDetectionView.as_view(), name="disease-scan"),

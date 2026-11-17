@@ -6,11 +6,45 @@ import { useNavigate } from 'react-router-dom';
 import { 
   UploadCloud, Camera, Sparkles, AlertTriangle, 
   ShieldAlert, Activity, ArrowRight, RefreshCw,
-  Leaf, HelpCircle, ShoppingCart, CheckCircle2, Stethoscope, X
+  Leaf, HelpCircle, ShoppingCart, Stethoscope, X
 } from 'lucide-react';
 import { apiDetectDisease, apiSymptomLookup } from '../../../services/api';
 
-export default function DiseaseDetectionPage({ onOpenCopilot }) {
+function renderHighlightedObservation(text, crop, disease, isHealthy) {
+  if (!text) return null;
+  const dynamicTerms = [crop, disease]
+    .filter(Boolean)
+    .flatMap((v) => v.split(/[\s()/,-]+/))
+    .filter((w) => w.length >= 4);
+  const pathologyTerms = [
+    'lesions', 'lesion', 'spots', 'spot', 'concentric', 'rings', 'blight', 'rust',
+    'pustules', 'water-soaked', 'mildew', 'mold', 'necrotic', 'powdery', 'chlorosis',
+    'halos', 'halo', 'stripes', 'streaks', 'angular', 'yellowing', 'brown', 'dark',
+    'healthy', 'green', 'intact', 'disease-free',
+  ];
+  const terms = Array.from(new Set([...dynamicTerms, ...pathologyTerms]))
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .sort((a, b) => b.length - a.length);
+  if (terms.length === 0) return text;
+
+  const regex = new RegExp(`\\b(${terms.join('|')})\\b`, 'gi');
+  const parts = String(text).split(regex);
+  const markClass = isHealthy
+    ? 'bg-emerald-100/80 text-emerald-900 px-1 rounded font-semibold'
+    : 'bg-rose-100/80 text-rose-900 px-1 rounded font-semibold';
+
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <mark key={i} className={markClass}>
+        {part}
+      </mark>
+    ) : (
+      <React.Fragment key={i}>{part}</React.Fragment>
+    )
+  );
+}
+
+export default function DiseaseDetectionPage({ onOpenCopilot: _onOpenCopilot }) {
   const navigate = useNavigate();
 
   const [customFile, setCustomFile] = useState(null);
@@ -56,16 +90,23 @@ export default function DiseaseDetectionPage({ onOpenCopilot }) {
         if (res.status === 'rejected' || res.status === 'low_confidence') {
           setDiagnosticResult({
             isRejected: true,
-            message: res.message || 'Unable to detect a crop leaf in the uploaded image.',
+            detectedPlant: res.detected_plant || '',
+            modelName: res.model || 'qwen2.5vl:7b',
+            message: res.message || 'Unable to match a supported crop disease from the uploaded image.',
+            observedSigns: res.observed_signs || '',
             recommendation: res.recommendation || 'Please capture a clear, well-lit photo of the affected plant foliage.',
           });
         } else if (res.status === 'model_unavailable') {
           setErrorMessage(res.message || 'The local crop vision model is unavailable.');
         } else {
+          const isHealthy = res.status === 'healthy';
           const chemical = res.treatment_plan?.chemical_control;
+          const productsNote = Array.isArray(chemical?.recommended_products) && chemical.recommended_products.length > 0
+            ? ` (Examples: ${chemical.recommended_products.join(', ')})`
+            : '';
           const treatments = [
             chemical?.active_ingredient && chemical?.dosage
-              ? `Apply ${chemical.active_ingredient} (${chemical.dosage}). ${chemical.spray_interval || ''}`.trim()
+              ? `Apply ${chemical.active_ingredient}${productsNote} (${chemical.dosage}). ${chemical.spray_interval || ''}`.trim()
               : null,
             chemical?.withholding_period_days != null
               ? `Pre-harvest interval: ${chemical.withholding_period_days} days.`
@@ -73,7 +114,10 @@ export default function DiseaseDetectionPage({ onOpenCopilot }) {
             ...(res.treatment_plan?.preventive_measures || []),
           ].filter(Boolean);
           setDiagnosticResult({
-            crop: res.crop,
+            isHealthy,
+            modelName: res.model || 'qwen2.5vl:7b',
+            crop: res.crop || res.detected_plant || 'Crop Leaf',
+            detectedPlant: res.detected_plant || res.crop || '',
             disease: res.disease_name,
             pathogenType: res.pathogen_type,
             severity: res.severity_level,
@@ -283,6 +327,11 @@ export default function DiseaseDetectionPage({ onOpenCopilot }) {
                 )}
               </button>
             </div>
+            {isScanning && (
+              <p className="mt-3 text-[11px] font-mono text-[#787774] text-center">
+                Running local Qwen2.5-VL 7B vision screening via Ollama (CPU passes can take 1–3 min).
+              </p>
+            )}
           </div>
 
         </div>
@@ -290,81 +339,176 @@ export default function DiseaseDetectionPage({ onOpenCopilot }) {
         {/* RIGHT COLUMN: DIAGNOSTIC REPORT CARD (7 COLS) */}
         <div className="lg:col-span-7">
           {diagnosticResult?.isRejected ? (
-            <div className="rounded-3xl p-8 border border-amber-300 bg-amber-50/70 text-amber-950 space-y-4">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />
-                <h3 className="font-heading font-extrabold text-lg text-amber-900">
-                  Honest Quality Filter: Specimen Unrecognized
-                </h3>
+            <div className="rounded-3xl p-6 sm:p-8 border border-amber-300 bg-amber-50/70 text-amber-950 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />
+                  <div>
+                    <h3 className="font-heading font-extrabold text-lg text-amber-950">
+                      Specimen Outside Supported Catalog / Unclear Leaf
+                    </h3>
+                    <p className="text-xs font-sans text-amber-800 mt-0.5">
+                      {diagnosticResult.message}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-mono font-semibold text-amber-800 bg-white/80 px-2.5 py-1 rounded-full border border-amber-200 shrink-0">
+                  {diagnosticResult.modelName || 'qwen2.5vl:7b'}
+                </span>
               </div>
-              <p className="text-xs font-sans leading-relaxed text-amber-800">
-                {diagnosticResult.message}
-              </p>
-              <div className="p-3.5 rounded-2xl bg-white/80 border border-amber-200 text-xs space-y-1">
-                <strong className="block text-amber-900">Recommendation:</strong>
-                <p className="text-amber-800">{diagnosticResult.recommendation}</p>
+
+              {diagnosticResult.detectedPlant && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-white border border-amber-200/90">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-amber-700 block">Identified Plant</span>
+                    <span className="text-base font-extrabold font-heading text-[#121212] mt-0.5 block">
+                      {diagnosticResult.detectedPlant}
+                    </span>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-white border border-amber-200/90">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-amber-700 block">Disease Match</span>
+                    <span className="text-base font-extrabold font-heading text-amber-800 mt-0.5 block">
+                      Uncertain / Unsupported Class
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {diagnosticResult.observedSigns && (
+                <div className="p-4 rounded-2xl bg-white border border-amber-200 text-xs space-y-1">
+                  <strong className="text-[10px] font-mono uppercase tracking-wider text-amber-800 block">
+                    AI Visual Observation
+                  </strong>
+                  <p className="text-[#121212] text-sm leading-relaxed">
+                    {renderHighlightedObservation(diagnosticResult.observedSigns, diagnosticResult.detectedPlant, '', false)}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <p className="text-xs text-amber-900">{diagnosticResult.recommendation}</p>
+                <button
+                  onClick={() => setIsSymptomModalOpen(true)}
+                  className="px-4 py-2 rounded-full bg-[#121212] text-white text-xs font-bold font-heading hover:bg-[#252525] transition-colors cursor-pointer"
+                >
+                  Use Symptom Questionnaire Instead
+                </button>
               </div>
-              <button
-                onClick={() => setIsSymptomModalOpen(true)}
-                className="mt-2 px-4 py-2 rounded-full bg-[#121212] text-white text-xs font-bold font-heading hover:bg-[#252525] transition-colors cursor-pointer"
-              >
-                Use Symptom Questionnaire Instead
-              </button>
             </div>
           ) : diagnosticResult ? (
             <div className="rounded-3xl p-6 sm:p-8 border border-black/[0.08] bg-white space-y-6 shadow-xs">
               
-              {/* Report Header & Severity Status */}
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b border-black/[0.06]">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[10px] font-mono uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-[#121212] text-white">
-                      {diagnosticResult.source === 'symptoms' ? 'Symptom-based assessment' : 'Local vision model assessment'}
+              {/* UPPER SECTION: AI Response with Clearly Highlighted Plant & Disease */}
+              <div className="space-y-4 pb-6 border-b border-black/[0.06]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        diagnosticResult.isHealthy ? 'bg-emerald-500' : 'bg-[#C26747]'
+                      }`}
+                    />
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#5A5A5A]">
+                      {diagnosticResult.source === 'symptoms' ? 'Symptom Assessment' : 'AI Leaf Screening'}
                     </span>
-                    {diagnosticResult.severity && (
-                      <span className="text-[10px] font-mono uppercase font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300">
-                        {diagnosticResult.severity}
+                    {diagnosticResult.severity && !diagnosticResult.isHealthy && (
+                      <span className="text-[10px] font-mono uppercase font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                        {diagnosticResult.severity} Severity
+                      </span>
+                    )}
+                    {diagnosticResult.isHealthy && (
+                      <span className="text-[10px] font-mono uppercase font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Healthy
                       </span>
                     )}
                   </div>
 
-                  <h3 className="text-xl sm:text-2xl font-black font-heading text-[#121212]">
-                    {diagnosticResult.disease}
-                  </h3>
-                  <p className="text-xs font-mono text-[#787774] mt-0.5">
-                    Host: <span className="font-bold text-[#121212]">{diagnosticResult.crop}</span> &bull; {diagnosticResult.pathogenType}
-                  </p>
+                  {diagnosticResult.source !== 'symptoms' && (
+                    <span className="text-[11px] font-mono text-[#787774] bg-[#FAF9F5] px-2.5 py-0.5 rounded-full border border-black/[0.06]">
+                      {diagnosticResult.modelName || 'qwen2.5vl:7b'}
+                    </span>
+                  )}
                 </div>
 
-                {/* Confidence Badge */}
-                {diagnosticResult.confidence && (
-                  <div className="shrink-0 flex sm:flex-col items-center sm:items-end justify-between p-3 rounded-2xl bg-[#FAF9F5] border border-black/[0.06]">
-                    <span className="text-[10px] font-mono uppercase text-[#787774]">Assessment match</span>
-                    <span className="text-lg sm:text-2xl font-black font-heading text-[#C26747]">
-                      {diagnosticResult.confidence}
+                {/* Highlighted Plant & Disease Callout Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-black/[0.08] flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-white border border-black/[0.06] flex items-center justify-center shrink-0">
+                      <Leaf className="w-4 h-4 text-emerald-700" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#787774] block">
+                        Identified Plant
+                      </span>
+                      <h3 className="text-lg sm:text-xl font-black font-heading text-[#121212] leading-tight mt-0.5 truncate">
+                        {diagnosticResult.crop || 'Crop Leaf'}
+                      </h3>
+                      {diagnosticResult.detectedPlant &&
+                        diagnosticResult.crop &&
+                        diagnosticResult.detectedPlant.toLowerCase() !== diagnosticResult.crop.toLowerCase() && (
+                          <p className="text-[11px] font-mono text-[#787774] mt-0.5">
+                            Vision cue: {diagnosticResult.detectedPlant}
+                          </p>
+                        )}
+                    </div>
+                  </div>
+
+                  <div
+                    className={`p-4 rounded-2xl border flex items-start justify-between gap-3 ${
+                      diagnosticResult.isHealthy
+                        ? 'bg-emerald-50/80 border-emerald-200'
+                        : 'bg-rose-50/70 border-rose-200'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <span
+                        className={`text-[10px] font-mono font-bold uppercase tracking-wider block ${
+                          diagnosticResult.isHealthy ? 'text-emerald-800' : 'text-rose-700'
+                        }`}
+                      >
+                        {diagnosticResult.isHealthy ? 'Leaf Condition' : 'Detected Disease'}
+                      </span>
+                      <h3 className="text-lg sm:text-xl font-black font-heading text-[#121212] leading-tight mt-0.5">
+                        {diagnosticResult.disease}
+                      </h3>
+                      {diagnosticResult.pathogenType && diagnosticResult.pathogenType !== 'None Detected' && (
+                        <p className="text-[11px] font-mono text-[#5A5A5A] mt-0.5 truncate">
+                          {diagnosticResult.pathogenType}
+                        </p>
+                      )}
+                    </div>
+                    {diagnosticResult.confidence && (
+                      <div className="text-right shrink-0">
+                        <span className="text-[10px] font-mono uppercase text-[#787774] block">Match</span>
+                        <span className="text-base font-black font-heading text-rose-700">
+                          {diagnosticResult.confidence}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* LLM / Clinical Observation with Inline Keyword Highlights */}
+                {diagnosticResult.symptoms && (
+                  <div className="p-4 rounded-2xl bg-[#FBFBF9] border border-black/[0.06] space-y-1.5">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#787774] flex items-center gap-1.5">
+                      <Activity className="w-3.5 h-3.5 text-[#C26747]" />
+                      <span>
+                        {diagnosticResult.source === 'symptoms'
+                          ? 'Matched Clinical Symptoms'
+                          : 'AI Vision Response (Observed Leaf Signs)'}
+                      </span>
                     </span>
+                    <p className="text-sm text-[#1E1E1E] font-sans leading-relaxed">
+                      {renderHighlightedObservation(
+                        diagnosticResult.symptoms,
+                        diagnosticResult.crop,
+                        diagnosticResult.disease,
+                        diagnosticResult.isHealthy
+                      )}
+                    </p>
                   </div>
                 )}
               </div>
-
-              {diagnosticResult.source === 'image' && (
-                <p className="text-xs leading-relaxed text-[#5A5A5A]">
-                  This is an AI screening result, not a confirmed diagnosis. Verify the plant condition with a qualified local agronomist before treatment.
-                </p>
-              )}
-
-              {/* Pathological Symptoms */}
-              {diagnosticResult.symptoms && (
-                <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-black/[0.05] space-y-1.5">
-                  <span className="text-[11px] font-mono font-bold uppercase text-[#787774] flex items-center gap-1.5">
-                    <Activity className="w-3.5 h-3.5 text-[#C26747]" />
-                    <span>{diagnosticResult.source === 'symptoms' ? 'Selected symptoms and assessment' : 'Model-described visible signs'}</span>
-                  </span>
-                  <p className="text-xs text-[#2A2A2A] font-sans leading-relaxed">
-                    {diagnosticResult.symptoms}
-                  </p>
-                </div>
-              )}
 
               {/* Treatment Protocol Segment (Chemical vs Organic Tabs) */}
               <div className="space-y-4">

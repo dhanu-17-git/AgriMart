@@ -10,7 +10,7 @@ import {
   ChevronRight, RefreshCw, BarChart2, AlertCircle, ShieldCheck,
   ExternalLink, Info, CheckCircle
 } from 'lucide-react';
-import { apiCropRecommend } from '../../../services/api';
+import { apiCropRecommend, apiCropAiAdvisory } from '../../../services/api';
 
 const SOIL_PRESETS = {
   alluvial: {
@@ -86,6 +86,9 @@ export default function CropRecommendationPage({
   const [recommendationResult, setRecommendationResult] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [reportReference, setReportReference] = useState(fromReportId);
+  const [aiAdvisory, setAiAdvisory] = useState(null);
+  const [isAdvisoryLoading, setIsAdvisoryLoading] = useState(false);
+  const [advisoryError, setAdvisoryError] = useState(null);
 
   // Field change handler
   const handleInputChange = (field, value) => {
@@ -120,6 +123,8 @@ export default function CropRecommendationPage({
     try {
       const response = await apiCropRecommend(payload);
       setRecommendationResult(response);
+      setAiAdvisory(null);
+      setAdvisoryError(null);
     } catch (err) {
       console.error('Crop Recommendation API Error:', err);
       setApiError(err.message || 'Unable to compute agronomic recommendation. Please check your connection.');
@@ -136,6 +141,30 @@ export default function CropRecommendationPage({
   const handleSubmit = (e) => {
     e.preventDefault();
     runRecommendation(inputs);
+  };
+
+  const handleGenerateAiBrief = async () => {
+    if (!recommendationResult) return;
+    setIsAdvisoryLoading(true);
+    setAdvisoryError(null);
+    try {
+      const res = await apiCropAiAdvisory({
+        crop: recommendationResult.display_name || recommendationResult.primary_crop,
+        nitrogen: Number(inputs.N),
+        phosphorus: Number(inputs.P),
+        potassium: Number(inputs.K),
+        ph: Number(inputs.ph),
+        rainfall: Number(inputs.rainfall),
+        temperature: Number(inputs.temp),
+        humidity: Number(inputs.humidity),
+        soil_health_index: recommendationResult?.soil_assessment?.soil_health_index ?? 75,
+      });
+      setAiAdvisory(res);
+    } catch (err) {
+      setAdvisoryError(err.message || 'Local Qwen2.5-VL agronomic model is unavailable.');
+    } finally {
+      setIsAdvisoryLoading(false);
+    }
   };
 
   const soilAssessment = recommendationResult?.soil_assessment || {};
@@ -533,6 +562,91 @@ export default function CropRecommendationPage({
                   </div>
                 </div>
 
+              </div>
+
+              {/* LOCAL QWEN2.5-VL STRUCTURED AGRONOMIC BRIEF CARD */}
+              <div className="rounded-3xl p-6 border border-black/[0.08] bg-white space-y-4 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-black/[0.06]">
+                  <div>
+                    <span className="text-[10px] font-mono uppercase font-bold text-[#155B43] bg-[#E8F5E9] px-2.5 py-0.5 rounded-full border border-[#C8E6D4]">
+                      Local LLM &bull; Qwen2.5-VL 7B Template
+                    </span>
+                    <h4 className="text-base font-extrabold font-heading text-[#121212] mt-1.5">
+                      Structured Field &amp; Nutrient Action Brief
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleGenerateAiBrief}
+                    disabled={isAdvisoryLoading}
+                    className="px-4 py-2 rounded-full bg-[#155B43] hover:bg-[#0E402E] text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    {isAdvisoryLoading ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Generating Brief...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>{aiAdvisory ? 'Regenerate AI Brief' : 'Generate AI Brief'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {advisoryError && (
+                  <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{advisoryError}</span>
+                  </div>
+                )}
+
+                {aiAdvisory?.advisory ? (
+                  <div className="space-y-3 text-xs">
+                    <div className="p-3.5 rounded-2xl bg-[#FBFBF9] border border-black/[0.05]">
+                      <span className="text-[10px] font-mono font-bold uppercase text-[#787774] block mb-1">
+                        Executive Summary ({aiAdvisory.model})
+                      </span>
+                      <p className="text-[#121212] leading-relaxed">{aiAdvisory.advisory.executive_summary}</p>
+                    </div>
+
+                    {Array.isArray(aiAdvisory.advisory.soil_correction_steps) && aiAdvisory.advisory.soil_correction_steps.length > 0 && (
+                      <div className="p-3.5 rounded-2xl bg-[#FBFBF9] border border-black/[0.05]">
+                        <span className="text-[10px] font-mono font-bold uppercase text-[#787774] block mb-1.5">
+                          Soil Correction Steps
+                        </span>
+                        <ul className="space-y-1 text-[#2A2A2A]">
+                          {aiAdvisory.advisory.soil_correction_steps.map((step, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="font-mono font-bold text-[#155B43]">{i + 1}.</span>
+                              <span>{step}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="p-3.5 rounded-2xl bg-sky-50/60 border border-sky-200/70">
+                        <span className="text-[10px] font-mono font-bold uppercase text-sky-800 block mb-1">
+                          Irrigation Schedule
+                        </span>
+                        <p className="text-sky-950 leading-relaxed">{aiAdvisory.advisory.irrigation_schedule}</p>
+                      </div>
+                      <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/70">
+                        <span className="text-[10px] font-mono font-bold uppercase text-amber-800 block mb-1">
+                          Harvest &amp; Risk Notes
+                        </span>
+                        <p className="text-amber-950 leading-relaxed">{aiAdvisory.advisory.harvest_risk_notes}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-[#6B6A66] font-sans">
+                    Click <strong>Generate AI Brief</strong> to synthesize these soil and climate readings into a structured field execution template using your local Qwen2.5-VL 7B model.
+                  </p>
+                )}
               </div>
 
               {/* SECONDARY ALTERNATIVES GRID */}

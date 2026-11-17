@@ -167,7 +167,28 @@ def test_ollama_vision_request_uses_image_and_supported_taxonomy(monkeypatch):
     assert observed["payload"]["messages"][0]["images"]
     assert "confidence" not in result
     assert result["disease"] == "Brown Spot"
+    assert result["severity"] == "Moderate"
+    assert result["detected_plant"] == "Rice"
     assert result["clinical_symptoms"] == "Oval brown lesions."
+
+
+def test_ollama_vision_uncertain_preserves_detected_plant(monkeypatch):
+    from ai.ml.disease_detector import classifier
+
+    monkeypatch.setenv("OLLAMA_VISION_MODEL", "qwen2.5vl:7b")
+    monkeypatch.setattr(
+        classifier,
+        "call_ollama_json",
+        lambda *_a, **_kw: {
+            "disease_key": "uncertain",
+            "detected_plant": "Mango",
+            "observed_signs": "Anthracnose-like black lesions on mango leaf margin.",
+        },
+    )
+    result = classify_image(_generate_synthetic_image())
+    assert result["status"] == "low_confidence"
+    assert result["detected_plant"] == "Mango"
+    assert "mango" in result["observed_signs"].lower()
 
 
 def test_ollama_unconfigured_model_returns_unavailable(monkeypatch):
@@ -239,3 +260,112 @@ def test_user_history_isolation():
     scans = history_res.json()["scans"]
     assert len(scans) == 1
     assert scans[0]["crop_name"] == "Tomato"
+
+
+@pytest.mark.django_db
+def test_disease_detection_handles_healthy_vision_response(monkeypatch):
+    from ai.ml.disease_detector import classifier
+
+    monkeypatch.setenv("OLLAMA_VISION_MODEL", "qwen2.5vl:7b")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.test")
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            answer = {"disease_key": "healthy", "observed_signs": "Uniform green leaf blade with no lesions."}
+            return json.dumps({"message": {"content": json.dumps(answer)}}).encode()
+
+    monkeypatch.setattr(classifier.urllib.request, "urlopen", lambda *_a, **_kw: FakeResponse())
+
+    client = APIClient()
+    image_file = BytesIO(_generate_synthetic_image())
+    image_file.name = "healthy_leaf.jpg"
+    response = client.post(
+        "/api/v1/crop-intelligence/disease-scan/",
+        {"image": image_file, "crop_hint": "Wheat"},
+        format="multipart",
+        secure=True,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert data["crop"] == "Wheat"
+    assert "Healthy" in data["disease_name"]
+    assert "Uniform green leaf" in data["symptoms"]
+
+
+@pytest.mark.django_db
+def test_soil_report_image_ocr_uses_ollama_vision(monkeypatch):
+    from ai.ml.ocr import report_parser
+
+    monkeypatch.setenv("OLLAMA_VISION_MODEL", "qwen2.5vl:7b")
+    monkeypatch.setattr(
+        report_parser,
+        "call_ollama_json",
+        lambda *_a, **_kw: {
+            "card_reference_number": "SHC-KA-2026-4410",
+            "nitrogen": 142.0,
+            "phosphorus": 41.0,
+            "potassium": 195.0,
+            "ph": 6.7,
+            "organic_carbon": 0.62,
+            "electrical_conductivity": 0.38,
+            "raw_text_summary": "SHC-KA-2026-4410 N 142 P 41 K 195 pH 6.7",
+        },
+    )
+
+    client = APIClient()
+    image_file = BytesIO(_generate_synthetic_image(is_leaf=False))
+    image_file.name = "soil_card.jpg"
+    response = client.post(
+        "/api/v1/crop-intelligence/soil-report/",
+        {"file": image_file},
+        format="multipart",
+        secure=True,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["card_reference_number"] == "SHC-KA-2026-4410"
+    assert data["extracted_parameters"]["nitrogen"] == 142.0
+    assert data["extracted_parameters"]["ph"] == 6.7
+    assert "qwen2.5vl:7b" in data["parsing_notes"]
+
+
+@pytest.mark.django_db
+def test_crop_agronomic_advisory_structured_template(monkeypatch):
+    from ai import views
+
+    monkeypatch.setenv("OLLAMA_VISION_MODEL", "qwen2.5vl:7b")
+    monkeypatch.setattr(
+        views,
+        "call_ollama_json",
+        lambda *_a, **_kw: {
+            "executive_summary": "Rice is optimal under 185mm rainfall with neutral soil pH 6.8.",
+            "soil_correction_steps": ["Apply split urea at tillering.", "Supplement zinc sulfate 25 kg/ha."],
+            "irrigation_schedule": "Maintain 2-5 cm standing water during vegetative growth.",
+            "harvest_risk_notes": "Drain fields 10 days before harvest to prevent lodging.",
+        },
+    )
+
+    client = APIClient()
+    response = client.post(
+        "/api/v1/crop-intelligence/advisory/",
+        {"crop": "Rice (Paddy)", "nitrogen": 130, "phosphorus": 45, "potassium": 160, "ph": 6.8},
+        format="json",
+        secure=True,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["model"] == "qwen2.5vl:7b"
+    assert set(data["advisory"].keys()) == {
+        "executive_summary",
+        "soil_correction_steps",
+        "irrigation_schedule",
+        "harvest_risk_notes",
+    }
