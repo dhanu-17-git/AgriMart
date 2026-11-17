@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="image/AgriMart%20Digital%20Marketplace%20Logo.png" alt="AgriMart" width="140" />
+  <img src="image/logo.png" alt="AgriMart" width="140" />
 </p>
 
 <h1 align="center">AgriMart</h1>
@@ -185,16 +185,16 @@ pytest -v
 ## Screenshots
 
 <p align="center">
-  <img src="image/AgriMart%20Suite_%20Store,%20Market%20&%20Crop.png" alt="AgriMart Suite" width="720" />
+  <img src="image/agrimart-suite.png" alt="AgriMart Suite" width="720" />
 </p>
 
 <p align="center">
-  <img src="image/AgriMart%20AG%20Store%20Login%20Experience.png" alt="AG Store" width="360" />
-  <img src="image/AgriMart%20APMC%20Market%20Login.png" alt="AG Market" width="360" />
+  <img src="image/store-login.png" alt="AG Store" width="360" />
+  <img src="image/market-login.png" alt="AG Market" width="360" />
 </p>
 
 <p align="center">
-  <img src="image/AgriMart%20AG%20Crop%20Intelligence%20Login.png" alt="AG Crop Intelligence" width="360" />
+  <img src="image/crop-login.png" alt="AG Crop Intelligence" width="360" />
 </p>
 
 ---
